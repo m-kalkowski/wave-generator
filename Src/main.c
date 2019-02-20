@@ -44,7 +44,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "math.h"
+#include "ringbuff.h"
 #include "tables.h"
+
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,7 +57,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define RX_BUFF_SIZE (256)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -71,7 +74,12 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+ringbuff_t ring_buffer;
+uint8_t uartRxData[RX_BUFF_SIZE];
 uint8_t uartByte;
+
+bool commandReceived = false;
+bool bufferOverflow = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,6 +97,15 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	if (uartByte == '\n')
+	{
+		commandReceived = true;
+	}
+	if (ringbuff_write(&ring_buffer, (void*)&uartByte, sizeof(uartByte) / sizeof(uint8_t)) != 1)
+	{
+		bufferOverflow = true;
+	}
+	
 	HAL_UART_Receive_IT(&huart1, &uartByte, 1);
 }
 /* USER CODE END 0 */
@@ -126,7 +143,11 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	HAL_UART_Receive_IT(&huart1, &uartByte, 1);
+	uint8_t data[10];
+	uint8_t *dataPtr = data;
+	ringbuff_init(&ring_buffer, uartRxData, sizeof(uartRxData) / sizeof(uint8_t));
+	HAL_UART_Receive_IT(&huart1, &uartByte, sizeof(uartByte) / sizeof(uint8_t));
+	
 	HAL_TIM_Base_Start(&htim2);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)saw_50Hz, saw_50Hz_size, DAC_ALIGN_12B_R);
@@ -139,6 +160,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		if (commandReceived == true)
+		{
+			// TODO: implement message decoding
+			while (ringbuff_read(&ring_buffer, (void*)dataPtr++, 1) > 0);  
+			commandReceived = false;
+		}
+		if (bufferOverflow == true)
+		{
+			// TODO: handle buffer overflow error
+			bufferOverflow = false;
+		}
+		HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }
