@@ -1,0 +1,10 @@
+wave-generator\arm_common_tables.o: ..\Drivers\CMSIS\DSP_Lib\Source\CommonTables\arm_common_tables.c
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/arm_math.h
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/core_cm0.h
+wave-generator\arm_common_tables.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/core_cmInstr.h
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/core_cmFunc.h
+wave-generator\arm_common_tables.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+wave-generator\arm_common_tables.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
+wave-generator\arm_common_tables.o: ../Drivers/CMSIS/Include/arm_common_tables.h
