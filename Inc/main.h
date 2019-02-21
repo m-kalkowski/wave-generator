@@ -52,12 +52,12 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "protocol.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern DAC_HandleTypeDef hdac;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

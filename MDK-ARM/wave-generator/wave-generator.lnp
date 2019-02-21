@@ -5,6 +5,7 @@
 "wave-generator\stm32f0xx_it.o"
 "wave-generator\stm32f0xx_hal_msp.o"
 "wave-generator\ringbuff.o"
+"wave-generator\protocol.o"
 "wave-generator\stm32f0xx_hal_dac.o"
 "wave-generator\stm32f0xx_hal_dac_ex.o"
 "wave-generator\stm32f0xx_hal_tim.o"

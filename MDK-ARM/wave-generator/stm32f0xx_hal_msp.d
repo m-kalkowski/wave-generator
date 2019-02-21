@@ -32,3 +32,6 @@ wave-generator\stm32f0xx_hal_msp.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0x
 wave-generator\stm32f0xx_hal_msp.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim_ex.h
 wave-generator\stm32f0xx_hal_msp.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart.h
 wave-generator\stm32f0xx_hal_msp.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex.h
+wave-generator\stm32f0xx_hal_msp.o: ../Inc/protocol.h
+wave-generator\stm32f0xx_hal_msp.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+wave-generator\stm32f0xx_hal_msp.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h

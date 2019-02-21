@@ -44,6 +44,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "math.h"
+#include "protocol.h"
 #include "ringbuff.h"
 #include "tables.h"
 
@@ -101,7 +102,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	{
 		commandReceived = true;
 	}
-	if (ringbuff_write(&ring_buffer, (void*)&uartByte, sizeof(uartByte) / sizeof(uint8_t)) != 1)
+	else if (ringbuff_write(&ring_buffer, (void*)&uartByte, sizeof(uartByte) / sizeof(uint8_t)) != 1)
 	{
 		bufferOverflow = true;
 	}
@@ -143,14 +144,14 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	uint8_t data[10];
-	uint8_t *dataPtr = data;
+	char data[MAXIMUM_MESSAGE_LENGTH];
+	char *dataPtr = data;
+	EMessageID eMessageID;
+	
 	ringbuff_init(&ring_buffer, uartRxData, sizeof(uartRxData) / sizeof(uint8_t));
 	HAL_UART_Receive_IT(&huart1, &uartByte, sizeof(uartByte) / sizeof(uint8_t));
 	
 	HAL_TIM_Base_Start(&htim2);
-	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)saw_50Hz, saw_50Hz_size, DAC_ALIGN_12B_R);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -162,8 +163,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
 		if (commandReceived == true)
 		{
-			// TODO: implement message decoding
-			while (ringbuff_read(&ring_buffer, (void*)dataPtr++, 1) > 0);  
+			while (ringbuff_read(&ring_buffer, (void*)dataPtr++, 1) > 0) {}
+			dataPtr = data;
+			
+			eMessageID = protocol__checkIfValid(data);
+			
+			protocol__decodeMessage(eMessageID, data);
+			
 			commandReceived = false;
 		}
 		if (bufferOverflow == true)
@@ -234,7 +240,7 @@ static void MX_DAC_Init(void)
   DAC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN DAC_Init 1 */
-
+	hdac.DMA_Handle1->
   /* USER CODE END DAC_Init 1 */
   /**DAC Initialization 
   */
