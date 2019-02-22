@@ -1,6 +1,5 @@
 --cpu Cortex-M0
 "wave-generator\startup_stm32f091xc.o"
-"wave-generator\tables.o"
 "wave-generator\main.o"
 "wave-generator\stm32f0xx_it.o"
 "wave-generator\stm32f0xx_hal_msp.o"

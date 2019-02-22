@@ -43,7 +43,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "math.h"
 #include "protocol.h"
 #include "ringbuff.h"
 #include "tables.h"
@@ -98,7 +97,7 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if (uartByte == '\n')
+	if (uartByte == '\r')
 	{
 		commandReceived = true;
 	}
@@ -240,7 +239,7 @@ static void MX_DAC_Init(void)
   DAC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN DAC_Init 1 */
-	hdac.DMA_Handle1->
+	//hdac.DMA_Handle1->Init
   /* USER CODE END DAC_Init 1 */
   /**DAC Initialization 
   */

@@ -35,7 +35,6 @@ wave-generator\main.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex
 wave-generator\main.o: ../Inc/protocol.h
 wave-generator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 wave-generator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
-wave-generator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 wave-generator\main.o: ../Inc/ringbuff.h
 wave-generator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 wave-generator\main.o: ../Inc/tables.h

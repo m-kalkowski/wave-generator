@@ -1,35 +1,15 @@
 #include "protocol.h"
 
 #include "main.h"
-#include "tables.h"
+#include "math.h"
 
+#define MAX_DAC_DMA_BUFFER_SIZE (3200) 
+#define PI 3.14159265358979323846
 
-uint16_t protocol__createChecksum(const char* buf, size_t size) 
-{
-	unsigned char i;
-	unsigned int data;
-	unsigned int crc = 0xffff;
-
-	if (size == 0)
-		return (~crc);
-
-	do
-	{
-		for (i=0, data=(unsigned int) 0xff & *buf++; i < 8; i++, data >>= 1)
-		{
-			if ((crc & 0x0001) ^ (data & 0x0001))
-					crc = (crc >> 1) ^ 0x8408;
-			else  
-				crc >>= 1;
-		}
-	} while (--size);
-
-	crc = ~crc;
-	data = crc;
-	crc = (crc << 8) | (data >> 8 & 0xff);
-	
-	return (crc);
-}
+uint16_t buff[MAX_DAC_DMA_BUFFER_SIZE];
+uint16_t buff_2[MAX_DAC_DMA_BUFFER_SIZE];
+int signal_1_Size;
+int signal_2_Size;
 
 EMessageID protocol__checkIfValid(const char* pMessageBuffer) 
 {
@@ -39,15 +19,6 @@ EMessageID protocol__checkIfValid(const char* pMessageBuffer)
 
 	if (MESSAGE_LENGTH < MINIMUM_MESSAGE_LENGTH)
 		return result;
-
-	const size_t checksumIndex = MESSAGE_LENGTH - 2;
-	const uint16_t ACTUAL_CHECKSUM = protocol__createChecksum(pMessageBuffer, checksumIndex);
-	const uint16_t READ_CHECKSUM = (pMessageBuffer[checksumIndex + 1] << 8) | pMessageBuffer[checksumIndex];
-
-	if (READ_CHECKSUM != ACTUAL_CHECKSUM)
-	{
-		return result;
-	}
 
 	const char MESSAGE_ID = pMessageBuffer[1];
 	
@@ -69,6 +40,14 @@ EMessageID protocol__checkIfValid(const char* pMessageBuffer)
 			}
 			break;
 		}
+		case eMESSAGE_ID_START_SUM:
+		{
+			if (MESSAGE_LENGTH == eMESSAGE_LENGTH_START_SUM) 
+			{
+				result = eMESSAGE_ID_START_SUM;
+			}
+			break;
+		}
 		default:
 		{
 			break;
@@ -78,206 +57,217 @@ EMessageID protocol__checkIfValid(const char* pMessageBuffer)
 	return result;
 }
 
-size_t protocol__createAck(char* pBuffer) {
-    struct AckMessage* pMessage = (struct AckMessage*) pBuffer;
-
-    pMessage->length = eMESSAGE_LENGTH_ACK;
-    pMessage->id = eMESSAGE_ID_ACK;
-    const size_t checksumIndex = eMESSAGE_LENGTH_ACK - 2;
-    pMessage->checksum = protocol__createChecksum(pBuffer, checksumIndex);
-    return sizeof(AckMessage);
+void protocol__generateSine(double f, double A, double p, uint16_t *pBuff, int *size)
+{
+	double step = 1.0 / 32000.0;
+	double t = 0;
+	int i = 0;
+	double T = 1.0 / f;
+	while (t < T)
+	{
+		pBuff[i] = A*sin(2.0 * PI * f * t + p) + (0xFFF / 2);
+		t += step;
+		i++;
+	}
+	*size = i - 1;
 }
 
-size_t protocol__createNack(char reason, char* pBuffer) {
-    struct NackMessage* pMessage = (struct NackMessage*) pBuffer;
+void protocol__generateSquare(double f, double A, double p, uint16_t *pBuff, int *size)
+{
+	double step = 1.0 / 32000.0;
+	double t = 0;
+	int i = 0;
+	double T = 1.0 / f;
+	while (t < T)
+	{
+		pBuff[i] = t < (T / 2) ? A + (0xFFF / 2) : (0xFFF / 2) - A;
+		t += step;
+		i++;
+	}
+	*size = i - 1;
+}
 
-    pMessage->length = eMESSAGE_LENGTH_NACK;
-    pMessage->id = eMESSAGE_ID_NACK;
-    pMessage->reason = reason;
-    const size_t checksumIndex = eMESSAGE_LENGTH_NACK - 2;
-    pMessage->checksum = protocol__createChecksum(pBuffer, checksumIndex);
-    return sizeof(NackMessage);
+void protocol__generateTriangle(double f, double A, double p, uint16_t *pBuff, int *size)
+{
+	double step = 1.0 / 32000.0;
+	double t = 0;
+	int i = 0;
+	double T = 1.0 / f;
+	
+	while (t < T / 2)
+	{
+		pBuff[i] =  t * 2 * A / T + ((0xFFF - A )/ 2);
+		t += step;
+		i++;
+	}
+	while (t > 0)
+	{
+		pBuff[i] =  t * 2 * A / T + ((0xFFF - A )/ 2);
+		t -= step;
+		i++;
+	}
+	*size = i - 1;
+}
+
+void protocol__generateSaw(double f, double A, double p, uint16_t *pBuff, int *size)
+{
+	double step = 1.0 / 32000.0;
+	double t = 0;
+	int i = 0;
+	double T = 1.0 / f;
+	while (t < T)
+	{
+		pBuff[i] = t * A / T + ((0xFFF - A )/ 2);
+		t += step;
+		i++;
+	}
+	*size = i - 1;
+}
+
+uint16_t *sumSignals()
+{
+	int biggerSize;
+	int smallerSize;
+	
+	uint16_t *biggerBuff;
+	uint16_t *smallerBuff;
+	
+	if (signal_2_Size > signal_1_Size)
+	{
+		biggerSize = signal_2_Size;
+		smallerSize = signal_1_Size;
+		biggerBuff = buff_2;
+		smallerBuff = buff;
+	}
+	else
+	{
+		biggerSize = signal_1_Size;
+		smallerSize = signal_2_Size;
+		biggerBuff = buff;
+		smallerBuff = buff_2;
+	}
+	
+	uint32_t y;
+	for (int i=0, j=0; i<biggerSize; ++i, ++j)
+	{	
+		if (j == smallerSize)
+			j = 0;
+		
+		y = (biggerBuff[i] + smallerBuff[j]) / 2;
+		if (y > 0xFFF)
+			y = 0xFFF;
+			
+		biggerBuff[i] = y;
+	}
+	
+	return biggerBuff;
 }
 
 void protocol__onStartDacReceived(StartDac *pStartDac)
 {
-	const uint16_t *pSignalType;
-	int signalSize;
+	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+	HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
 	
 	switch (pStartDac->signalType)
 	{
 		case eSIGNAL_TYPE_SINE:
 		{
-			switch (pStartDac->frequency)
-			{
-				case eFREQUENCY_50Hz:
-				{
-					pSignalType = sine_50Hz;
-					signalSize = sine_50Hz_size;
-					break;
-				}
-				case eFREQUENCY_100Hz:
-				{
-					pSignalType = sine_100Hz;
-					signalSize = sine_100Hz_size;
-					break;
-				}
-				case eFREQUENCY_200Hz:
-				{
-					pSignalType = sine_200Hz;
-					signalSize = sine_200Hz_size;
-					break;
-				}
-				case eFREQUENCY_500Hz:
-				{
-					pSignalType = sine_500Hz;
-					signalSize = sine_500Hz_size;
-					break;
-				}
-				case eFREQUENCY_1000Hz:
-				{
-					pSignalType = sine_1000Hz;
-					signalSize = sine_1000Hz_size;
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
+			protocol__generateSine(pStartDac->frequency, pStartDac->amplitude, pStartDac->phase, buff, &signal_1_Size);
 			break;
 		}
 		case eSIGNAL_TYPE_SQUARE:
 		{
-			switch (pStartDac->frequency)
-			{
-				case eFREQUENCY_50Hz:
-				{
-					pSignalType = square_50Hz;
-					signalSize = square_50Hz_size;
-					break;
-				}
-				case eFREQUENCY_100Hz:
-				{
-					pSignalType = square_100Hz;
-					signalSize = square_100Hz_size;
-					break;
-				}
-				case eFREQUENCY_200Hz:
-				{
-					pSignalType = square_200Hz;
-					signalSize = square_200Hz_size;
-					break;
-				}
-				case eFREQUENCY_500Hz:
-				{
-					pSignalType = square_500Hz;
-					signalSize = square_500Hz_size;
-					break;
-				}
-				case eFREQUENCY_1000Hz:
-				{
-					pSignalType = square_1000Hz;
-					signalSize = square_1000Hz_size;
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
+			protocol__generateSquare(pStartDac->frequency, pStartDac->amplitude, pStartDac->phase, buff, &signal_1_Size);
 			break;
 		}
 		case eSIGNAL_TYPE_TRIANGLE:
 		{
-			switch (pStartDac->frequency)
-			{
-				case eFREQUENCY_50Hz:
-				{
-					pSignalType = triangle_50Hz;
-					signalSize = triangle_50Hz_size;
-					break;
-				}
-				case eFREQUENCY_100Hz:
-				{
-					pSignalType = triangle_100Hz;
-					signalSize = triangle_100Hz_size;
-					break;
-				}
-				case eFREQUENCY_200Hz:
-				{
-					pSignalType = triangle_200Hz;
-					signalSize = triangle_200Hz_size;
-					break;
-				}
-				case eFREQUENCY_500Hz:
-				{
-					pSignalType = triangle_500Hz;
-					signalSize = triangle_500Hz_size;
-					break;
-				}
-				case eFREQUENCY_1000Hz:
-				{
-					pSignalType = triangle_1000Hz;
-					signalSize = triangle_1000Hz_size;
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
+			protocol__generateTriangle(pStartDac->frequency, pStartDac->amplitude, pStartDac->phase, buff, &signal_1_Size);
 			break;
 		}
 		case eSIGNAL_TYPE_SAW:
 		{
-			switch (pStartDac->frequency)
-			{
-				case eFREQUENCY_50Hz:
-				{
-					pSignalType = saw_50Hz;
-					signalSize = saw_50Hz_size;
-					break;
-				}
-				case eFREQUENCY_100Hz:
-				{
-					pSignalType = saw_100Hz;
-					signalSize = saw_100Hz_size;
-					break;
-				}
-				case eFREQUENCY_200Hz:
-				{
-					pSignalType = saw_200Hz;
-					signalSize = saw_200Hz_size;
-					break;
-				}
-				case eFREQUENCY_500Hz:
-				{
-					pSignalType = saw_500Hz;
-					signalSize = saw_500Hz_size;
-					break;
-				}
-				case eFREQUENCY_1000Hz:
-				{
-					pSignalType = saw_1000Hz;
-					signalSize = saw_1000Hz_size;
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
+			protocol__generateSaw(pStartDac->frequency, pStartDac->amplitude, pStartDac->phase, buff, &signal_1_Size);
 			break;
 		}
 		default:
 		{
-			break;
+			return;
 		}	
 	}
 	
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)pSignalType, signalSize, DAC_ALIGN_12B_R);
+	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)buff, signal_1_Size, DAC_ALIGN_12B_R);
+}
+
+void protocol__onStartSumReceived(StartSum *pStartSum)
+{
+	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+	HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+	
+	switch (pStartSum->signalType_1)
+	{
+		case eSIGNAL_TYPE_SINE:
+		{
+			protocol__generateSine(pStartSum->frequency_1, pStartSum->amplitude_1, pStartSum->phase_1, buff, &signal_1_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_SQUARE:
+		{
+			protocol__generateSquare(pStartSum->frequency_1, pStartSum->amplitude_1, pStartSum->phase_1, buff, &signal_1_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_TRIANGLE:
+		{
+			protocol__generateTriangle(pStartSum->frequency_1, pStartSum->amplitude_1, pStartSum->phase_1, buff, &signal_1_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_SAW:
+		{
+			protocol__generateSaw(pStartSum->frequency_1, pStartSum->amplitude_1, pStartSum->phase_1, buff, &signal_1_Size);
+			break;
+		}
+		default:
+		{
+			return;
+		}	
+	}
+	
+	switch (pStartSum->signalType_2)
+	{
+		case eSIGNAL_TYPE_SINE:
+		{
+			protocol__generateSine(pStartSum->frequency_2, pStartSum->amplitude_2, pStartSum->phase_2, buff_2, &signal_2_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_SQUARE:
+		{
+			protocol__generateSquare(pStartSum->frequency_2, pStartSum->amplitude_2, pStartSum->phase_2, buff_2, &signal_2_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_TRIANGLE:
+		{
+			protocol__generateTriangle(pStartSum->frequency_2, pStartSum->amplitude_2, pStartSum->phase_2, buff_2, &signal_2_Size);
+			break;
+		}
+		case eSIGNAL_TYPE_SAW:
+		{
+			protocol__generateSaw(pStartSum->frequency_2, pStartSum->amplitude_2, pStartSum->phase_2, buff_2, &signal_2_Size);
+			break;
+		}
+		default:
+		{
+			return;
+		}	
+	}
+	
+	uint16_t *outBuff;
+	outBuff = sumSignals();
+	
+	int signalSize = signal_2_Size > signal_1_Size ? signal_2_Size : signal_1_Size;
+	
+	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)outBuff, signalSize, DAC_ALIGN_12B_R);
 }
 
 void protocol__onStopDacReceived(StopDac *pStopDac)
@@ -300,6 +290,12 @@ void protocol__decodeMessage(EMessageID eMessageID, const char *pData)
 		{
 			StopDac *pStopDac = (StopDac*)pData;
 			protocol__onStopDacReceived(pStopDac);
+			break;
+		}
+		case eMESSAGE_ID_START_SUM:
+		{
+			StartSum *pStartSum = (StartSum*)pData;
+			protocol__onStartSumReceived(pStartSum);
 			break;
 		}
 		default:

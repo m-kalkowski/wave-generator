@@ -35,4 +35,4 @@ wave-generator\protocol.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim
 wave-generator\protocol.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim_ex.h
 wave-generator\protocol.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart.h
 wave-generator\protocol.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex.h
-wave-generator\protocol.o: ../Inc/tables.h
+wave-generator\protocol.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
